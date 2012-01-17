@@ -1,0 +1,61 @@
+#!/bin/sh
+
+if [ "$1" = "-h" -o "$1" = "--help" ]; then
+	echo "usage: update [--optimize]"
+	exit 1
+fi
+
+if [ $EUID != "0" ]; then
+	echo "Please run as root" >&2
+	exit 1
+fi
+
+# Determine the size of the current log file
+LOG_FILE="/var/log/pacman.log"
+LOG_SIZE=`wc -l $LOG_FILE | cut -d ' ' -f 1`
+
+# Update the system
+pacman -Sy || exit 1
+pacman -S pacman --needed || exit 1   # pacman must be updated first
+pacman -Su || exit 1
+
+# Remove orphaned packages
+pacman -Qdt | cut -d ' ' -f 1 | xargs pacman --noconfirm -Rs
+
+# Optimize the pacman database if instructed to
+[ "$1" = "--optimize" -o "$1" = "-o" ] && pacman-optimize
+
+# Update ABS
+abs
+sync
+
+# Find any new .pacnew/.pacsave files, warnings, or removed packages
+LOG=`tail -n +$(( LOG_SIZE + 1 )) $LOG_FILE`
+MESSAGES=`echo "$LOG" | grep -v '] removed ' | grep -v '] installed ' | \
+                        grep -v '] upgraded ' | grep -v '] Running ' | \
+						grep -v '] synchronizing ' | grep -v '] starting '`
+REMOVED=`echo "$LOG" | grep '] removed ' | cut -d ' ' -f 4`
+PACNEWS=`find /etc/ -name \*.pacnew 2> /dev/null`
+
+# Finish
+echo
+echo "-> FINISHED"
+echo "-> Pacman database updated"
+echo "-> Installed packages updated"
+echo "-> Orphaned packages removed"
+[ "$1" = "--optimize" -o "$1" = "-o" ] && echo "-> Pacman database optimized"
+echo "-> ABS updated"
+if [ ! -z "$MESSAGES" ]; then
+	echo "-> pacman output the following messages:"
+	echo "--------------------------------------------------------------"
+	echo "$MESSAGES"
+	echo "--------------------------------------------------------------"
+fi
+if [ ! -z "$REMOVED" ]; then
+	echo "-> pacman removed the following packages (possibly due to being orphaned):"
+	echo "$REMOVED"
+fi
+if [ ! -z "$PACNEWS" ]; then
+	echo "-> The following .pacnew/.pacsave files exist in /etc:"
+	echo $PACNEWS
+fi

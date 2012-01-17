@@ -1,0 +1,77 @@
+#!/bin/bash
+# Uses Bash arrays
+
+case "$1" in
+	--proc-count)
+		C=`ps -e | wc -l`
+		C=$(( C - 3 ))   # Subtract top line, ps, and wc
+		echo "$C"
+	;;
+	--thread-count)
+		C=`ps -e H | wc -l`
+		C=$(( C - 3 ))   # Subtract top line, ps, and wc
+		echo "$C"
+	;;
+	--network)
+		MAX_CONNECTIONS=50
+		LIST=`sudo lsof -i tcp -n | tail -n +2`
+
+		if [ "$2" = "--programs" ]; then
+			LIST=`echo "$LIST" | grep -v "LISTEN" | awk '{print $1,$2}' | \
+			   sort | uniq`
+
+		elif [ "$2" = "--connections" ]; then
+			LIST=`echo "$LIST" | grep -v "127.0.0.1" | grep -v "LISTEN" | \
+			   head -n $MAX_CONNECTIONS`
+
+		elif [ "$2" = "--services" ]; then
+			LIST=`echo "$LIST" | grep "LISTEN" | head -n $MAX_CONNECTIONS`
+		fi
+
+		if [ "$2" = "--connection" -o "$2" = "--services" ]; then
+			PORT=( `echo "$LIST" | awk '{print $9}' | cut -d ':' -f 2 | \
+			   cut -d '-' -f 1 | xargs` )
+			DEST=( `echo "$LIST" | awk '{print $9}' | cut -d '>' -f 2 | \
+			   xargs` )
+			# STATE=( `echo "$LIST" | awk '{print $10}' | xargs` )
+			PROG=( `echo "$LIST" | awk '{print $1}' | xargs` )
+			PID=( `echo "$LIST" | awk '{print $2}' | xargs` )
+		elif [ "$2" = "--programs" ]; then
+			PROG=( `echo "$LIST" | awk '{print $1}' | xargs` )
+			PID=( `echo "$LIST" | awk '{print $2}' | xargs` )
+		fi
+
+		CONNECTIONS=`echo "$LIST" | wc -l`
+		[ "$LIST" = "" ] && CONNECTIONS=0
+
+		idx=0
+		port=""
+		dest=""
+		# state=""
+		while [ $idx -lt $CONNECTIONS ]; do
+			if [ "$2" != "--programs" ]; then
+				port=${PORT[$idx]}
+				dest=${DEST[$idx]}
+				# state=${STATE[$idx]}
+			fi
+			prog=${PROG[$idx]}
+			pid=${PID[$idx]}
+			echo -e "   ($pid)   $prog     $dest"
+			idx=$(( idx + 1 ))
+		done
+		[ $CONNECTIONS -eq $MAX_CONNECTIONS ] && echo "   [... list truncated ...]"
+		[ $CONNECTIONS -eq 0 ] && echo "   [No active TCP connections]"
+		;;
+	*)
+		echo " Usage: " `basename $0` " [statistic]" >&2
+		echo " The following statistics are availible:" >&2
+		echo "    --proc-count   : Number of processes running" >&2
+		echo "    --thread-count : Number of threads running" >&2
+		echo "    --network      : List all open network connections" >&2
+		echo "       --connections : List established TCP connections" >&2
+		echo "       --services    : List listening TCP connections" >&2
+		echo "       --programs    : List programs with any TCP connections" >&2
+	;;
+esac
+
+exit 0

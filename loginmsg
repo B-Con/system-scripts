@@ -1,0 +1,55 @@
+#!/bin/sh
+
+FILE=~/.loginmsg
+STATUS=1   # Return success explicitly
+
+case $1 in
+	-a|--add)
+		if [ ! -f $FILE ]; then
+			echo    "===============================" >  $FILE
+			echo    "= Your Login Message Reminder =" >> $FILE
+			echo -e "===============================" >> $FILE
+		fi
+		echo -e "$2\n" | fmt -80 >> $FILE
+		echo -e "The message that will be displayed is:\n"
+		cat $FILE
+		STATUS=0
+	;;
+	-s|--show)
+		if [ -f $FILE ]; then
+			xmessage -c -buttons "OK - Remove message:0,Keep message:1" \
+			         -default "OK - Remove message" -file $FILE
+			[ $? -ne 1 ] && rm -f $FILE
+			STATUS=0
+		fi
+	;;
+	-r|--remove)
+		if [ -f $FILE ]; then
+			if [ "$2" = "" -o "$2" = "0"]; then
+				rm -f $FILE
+			else
+				true
+				# TODO: Remove the line number specified
+			fi
+			STATUS=0
+		fi
+	;;
+	*)
+		echo " LoginMSG v.1 - Display yourself a message" >&2
+		echo   >&2
+		echo " usage: loginmsg [ options ]" >&2
+		echo   >&2
+		echo "   -a, --add MSG     : Append MSG to the existing message" >&2
+		echo "                       contents. Message contents are" >&2
+		echo "                       stored in ~/.loginmsg." >&2
+		echo "   -s, --show        : Display the message." >&2
+		#echo "   -r, --remove NUM  : Remove the NUMth message, starting" >&2
+		#echo "                       at 1. Blank or 0 will remove all" >&2
+		#echo "                       messages." >&2
+		echo "   -r, --remove      : Remove any existing message." >&2
+		echo   >&2
+		echo " You will need to manually add  \"loginmsg --show\" to" >&2
+		echo " your login scripts." >&2
+	;;
+esac
+exit $STATUS

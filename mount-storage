@@ -1,0 +1,17 @@
+#! /bin/sh
+
+# Mount the volume if it isn't alreay
+var=`mount -l | grep '/media/storage'`
+if [ -z "$var" ]; then
+	# Find the block device Ubuntu decided to assign to the partition this bloody time (changes every boot)
+	#my_var=`ls -l /dev/disk/by-id | grep "scsi-1ATA_Maxtor_7H500F0_H81E4GAH-part1" | cut -d / -f 3`
+	#vol_path="/dev/$my_var"
+	if [ $# -eq 0 ]; then
+		vol_path="/dev/sdc1"
+	else
+		vol_path="$1"
+	fi
+	truecrypt -t -k "" --protect-hidden=no --fs-options=noexec,noatime,nodiratime $vol_path /media/storage
+fi
+
+[ "$DISPLAY" = ":0.0" ] && pcmanfm -t /media/storage &> /dev/null & # Open new tab in pcmanfm

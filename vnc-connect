@@ -1,0 +1,4 @@
+#!/bin/sh
+
+vncviewer -encodings "copyrect tight zrle hextile" localhost:5900
+

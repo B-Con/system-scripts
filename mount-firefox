@@ -1,0 +1,86 @@
+#!/bin/sh
+
+# For now hard code the user. Maybe later implement multiple user support.
+USER=b-con
+USER_UID=1000
+USER_GID=100
+ARCHIVES_KEEP=10
+ARCHIVE_BASENAME="firefox-backup-"
+
+if [ $EUID != 0 ]; then
+	echo "You must run this as root." >&2
+	exit 1
+fi
+
+if [ ! -d "/home/$1" ]; then
+	echo "User '$1' doesn't exist." >&2
+	exit 1
+fi
+
+cd /home/$USER/.mozilla
+
+case "$2" in
+	start)
+		if [ -d firefox ]; then
+			if [ -z "`mount -l | grep firefox`" ]; then
+				rm -rf firefox/*
+			else
+				exit 1
+			fi
+		else
+			su $USER -c "mkdir firefox"
+		fi
+		mount -t tmpfs none firefox -o size=100M,uid=$USER_UID,gid=$USER_GID
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not mount ~/.mozilla/firefox as tmpfs.">&2
+			exit 1
+		fi
+		cp -a firefox-disk/. firefox/
+		# Do some umask math to restore the umask perms that mount changed.
+		chmod $(( 777 - 10#`su $USER -c umask` )) firefox  
+	;;
+	backup)
+		# Don't backup an empty profile, obviously a mistake
+		if [ -z "`ls firefox`" ]; then
+			echo "Error: The mounted Firefox profile tmpfs is empty!" >&2
+			exit 1
+		fi
+		# Create an archive and backup to a folder on disk
+		tar -czf "${ARCHIVE_BASENAME}`date +%F`.tar.gz" firefox
+		/usr/local/bin/rotate-archive "$ARCHIVE_BASENAME" $ARCHIVES_KEEP
+		if [ -d firefox-disk ]; then
+			rm -rf firefox-disk/*
+		else
+			su $USER -c "mkdir firefox-disk"
+		fi
+		cp -a firefox/. firefox-disk/
+	;;
+	stop)
+		# Caution: Profile data must be saved, if this "stop" is triggered
+		# by, say, a system shutdown, the tmpfs will be unmounted forcably
+		# and all profile data lost. So the profile data must be backed up
+		# no matter what.
+		"$0" $USER backup
+
+		# FIXME: Hack to see if there exist firefox processes by the user.
+		if [ ! -z "`ps -u $USER | grep firefox`" ]; then
+			echo "Error: $USER still has a Firefox process running." >&2
+			echo "       Profile data saved, but tmpfs not unmounted." >&2
+			exit 1
+		fi
+		umount firefox
+	;;
+	*)
+		echo "mount-firefox: Manages a Firefox profile to/from RAM" >&2
+		echo "Usage: mount-firefox [username] [start|stop|backup]" >&2
+		echo >&2
+		echo "   start : Mount the tmpfs, move user's profiles to RAM." >&2
+		echo "   stop  : Save user's profiles to disk, unmount tmpfs." >&2
+		echo "   backup: Save user's profiles to disk, keep the tmpfs." >&2
+		echo >&2
+		echo "Day-by-day snapshots are kept in ~/.mozilla/firefox" >&2
+		echo "just in case something goes wrong or you want to revert." >&2
+	;;
+esac
+
+exit 0

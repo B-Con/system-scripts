@@ -1,0 +1,171 @@
+#!/bin/sh
+
+#################################################
+# iptables firewall, by Brad Conte (brad@bradconte.com)
+#################################################
+
+# Parameters for the firewall
+IPTABLES="`which iptables`"   # Replace these if iptables is not in your $PATH
+#IP6TABLES="`which ip6tables`" # Disable ip6tables for the moment
+
+PORT_SSH="31415"
+PORT_BITTORRENT_BOTTOM="7000"
+PORT_BITTORRENT_TOP="7100"
+
+[ ! -x "$IPTABLES" ] && exit 1
+
+#################################################
+# Kernel packet filtering
+#################################################
+
+# Logic Flow:
+# - Cleanse existing IP tables and create necessary chains
+# - Accept connections from local
+# - Drop invalid packets
+# - Check source IP against list of banned IPs
+# - If the packet is est. or related, ACCEPT by default unless you have a need to drop
+# - If the packet is new, DROP by default unless you have a need to accept
+
+case $1 in
+
+	start)
+		# IPv6 only
+
+		if [ -x "$IP6TABLES" ]; then
+			$IP6TABLES -F
+			$IP6TABLES -X
+
+			# Accept IPv6 on local interface (some apps stupidly use it)
+			$IP6TABLES -A INPUT -i lo -j ACCEPT 2> /dev/null
+			$IP6TABLES -A INPUT -j DROP         2> /dev/null
+		fi
+
+		# Create the chains
+		$IPTABLES -F
+		$IPTABLES -X
+		$IPTABLES -N BANNED_IPS
+		$IPTABLES -N NEW_CONNECT
+		$IPTABLES -N EST
+		$IPTABLES -N LOG_DROP
+
+		####################
+		# INPUT chain
+		####################
+
+		$IPTABLES -A INPUT -i lo -j ACCEPT
+		$IPTABLES -A INPUT -m state --state INVALID -j LOG_DROP
+		$IPTABLES -A INPUT -j BANNED_IPS
+		$IPTABLES -A INPUT -m state --state ESTABLISHED,RELATED -j EST
+		$IPTABLES -A INPUT -m state --state NEW -j NEW_CONNECT
+		$IPTABLES -A INPUT -j LOG_DROP
+
+		####################
+		# OUTPUT chain
+		####################
+
+		$IPTABLES -P OUTPUT ACCEPT
+
+		####################
+		# Banned IPs
+		####################
+
+		$IPTABLES -A BANNED_IPS -j RETURN
+
+		####################
+		# Established Communication
+		####################
+
+		# TCP
+		# Drop all RST packets on bittorrent ports
+		#$IPTABLES -A EST -p tcp --rst --dport $PORT_BITTORRENT_BOTTOM:$PORT_BITTORRENT_TOP -j DROP
+
+		# UDP
+
+		# ICMP
+		$IPTABLES -A EST -p icmp -f -j LOG_DROP   # Disallow fragmented ICMP
+
+		$IPTABLES -A EST -j ACCEPT
+
+		####################
+		# Open/Listening Ports
+		####################
+
+		# TCP
+		$IPTABLES -A NEW_CONNECT -p tcp ! --syn -j LOG_DROP
+		# Add IP to the list of "new" packets
+		#$IPTABLES -A NEW_CONNECT -m recent --set --name NEW
+		# SYN floods (based on SYN queue size and lifetime)
+		#$IPTABLES -A NEW_CONNECT -m recent --update --seconds 10 --hitcount 10 --rttl --name NEW -j LOG_DROP
+		# Listening services
+		$IPTABLES -A NEW_CONNECT -p tcp --dport $PORT_SSH -j ACCEPT
+		$IPTABLES -A NEW_CONNECT -p tcp --dport $PORT_BITTORRENT_BOTTOM:$PORT_BITTORRENT_TOP -j ACCEPT
+
+		# UDP
+		$IPTABLES -A NEW_CONNECT -p udp --dport $PORT_BITTORRENT_BOTTOM:$PORT_BITTORRENT_TOP -j ACCEPT
+
+		# ICMP
+
+		$IPTABLES -A NEW_CONNECT -j LOG_DROP
+
+		####################
+		# Drop and Log
+		####################
+
+		$IPTABLES -A LOG_DROP -p udp --dport 37 -j DROP   # NETBIOS scans
+		$IPTABLES -A LOG_DROP -m limit --limit 1/sec -j LOG --log-ip-options -p tcp --log-tcp-options --log-prefix "rejected_tcp: " --log-level 7
+		$IPTABLES -A LOG_DROP -m limit --limit 1/sec -j LOG --log-ip-options -p tcp --log-prefix "rejected_nontcp: " --log-level 7
+		$IPTABLES -A LOG_DROP -j DROP
+
+		#################################################
+		# Harden TCP/ARP
+		#################################################
+
+		# Don't forward anything
+		sysctl -q -w net.ipv4.ip_forward=0
+		# Check ACK's against valid SYN cookie values
+		sysctl -q -w net.ipv4.tcp_syncookies=1
+		# Max num of connections with no ACK from client
+		sysctl -q -w net.ipv4.tcp_max_syn_backlog="4096"
+		# Num times a SYN|ACK will be sent back
+		sysctl -q -w net.ipv4.tcp_synack_retries=3
+		# Drop gratuitous ARP frames
+		sysctl -q -w net.ipv4.conf.all.arp_accept=0
+		# Do not accept ICMP broadcast packets
+		sysctl -q -w net.ipv4.icmp_echo_ignore_broadcasts=1
+		# Do not listen to IP source routing
+		sysctl -q -w net.ipv4.conf.all.accept_source_route=0
+
+		#################################################
+		# Misc
+		#################################################
+
+		# Static route to the home network router
+		arp -s 192.168.100.1 00:14:6C:A4:F7:20 2> /dev/null
+	;;
+
+	stop)
+		$IPTABLES -F
+		$IPTABLES -X
+		$IP6TABLES -F
+		$IP6TABLES -X
+
+		sysctl -q -w net.ipv4.tcp_syncookies=1
+		sysctl -q -w net.ipv4.tcp_max_syn_backlog="2048"
+		sysctl -q -w net.ipv4.tcp_synack_retries=5
+		sysctl -q -w net.ipv4.conf.all.arp_accept=0
+		sysctl -q -w net.ipv4.icmp_echo_ignore_broadcasts=0
+		sysctl -q -w net.ipv4.conf.all.accept_source_route=1
+	;;
+
+	restart)
+		"$0" stop
+		"$0" start
+	;;
+
+	*)
+		echo "   Usage: $0 [start|stop|restart]"
+		exit 2
+	;;
+
+esac
+exit 0

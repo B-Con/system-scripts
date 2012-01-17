@@ -1,0 +1,4 @@
+#!/bin/sh
+
+swapon -a
+pm-hibernate

@@ -1,0 +1,31 @@
+#!/bin/sh
+
+if [ "$1" = "-h" -o "$1" = "--help" ]; then
+	echo "Usage: rotate-archives [basename] [keep]" >&2
+	echo >&2
+	echo "rotate-archives will rotate files with basename 'basename'" >&2
+	echo "and keep 'keep' number of them." >&2
+	exit 1
+fi
+if [ "$2" = "" ]; then
+	echo "Second argument must be an integer." >&2
+	exit 1
+fi
+
+# List all the files with that basename
+FILENAME="`basename "$1"`"
+DIRNAME="`dirname "$1"`"
+FILELIST="`find "$DIRNAME" -type f -name "$FILENAME"\*`"
+
+if [ "$FILELIST" = "" ]; then
+	echo "No files with that basename found." >&2
+	exit 1
+fi
+
+# Sort the list
+SORTEDLIST="`echo "$FILELIST" | sort -n`"
+
+# Remove all files not at the top of the list.
+# Use -f for rm since archives/backups may be read-only.
+echo "$SORTEDLIST" | head -n -$2 | xargs rm -f
+

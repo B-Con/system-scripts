@@ -1,0 +1,24 @@
+#!/bin/sh
+
+if [ ! -x scrot ]; then
+	echo "This script requires 'scrot' to run. Please ensure it is available." > &2
+	exit 1
+fi
+
+if [ ! -x zenity ]; then
+	echo "This script requires 'zenity' to run. Please ensure it is available." > &2
+	exit 1
+fi
+
+DEFAULT_FILENAME="screenshot-tmp.png"
+
+scrot "$DEFAULT_FILENAME" -e 'mv $f /tmp/'
+DATE="`date +%m-%d_%H:%M:%S`"
+FILENAME="`zenity --entry --text=\"Screenshot saved! Please choose a filename for the screenshot:" --entry-text="screenshot-$DATE.png\"`"
+
+# Delete the screenshot if it's a blank filename.
+if [ "$FILENAME" = "" ]; then
+	rm /tmp/$DEFAULT_FILENAME
+else
+	mv "/tmp/$DEFAULT_FILENAME" "/home/b-con/Desktop/$FILENAME"
+fi

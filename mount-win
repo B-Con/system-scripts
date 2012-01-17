@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# mount-win: a simple script to mount Windows filesystems with expected permissions
+# By: Brad Conte (brad@bradconte.com)
+
+# Ensure the user exists
+#if [ "`id $1 2>&1 | cut -d ' ' -f 3`" == "No" ]; then
+#	echo "User doesn't exist."
+#	exit -1
+#fi
+# Print out the usage info
+#if [ "$1" == "help" -o "$1" == "--help" -o $# == 0 ]; then
+#	echo "Usage: mount-fat [username] [device] [mount point]"
+#	echo "	The device can be unmounted normally via: umount [mount point]"
+#	echo "	The specified user will own the mounted filesystem."
+#	exit 1
+#fi
+
+# mount itself will ensure that the target and source exist
+
+#USER=`id -u $1`
+#GROUP=`id -g $1`
+mount -t auto -o rw,noauto,noatime,nodiratime,quiet,nosuid,noexec,nodev,dmask=000,fmask=111 "$1" "$2"

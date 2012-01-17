@@ -1,0 +1,113 @@
+#!/bin/bash
+# Uses Bash arrays
+
+# By: B-Con (Brad Conte: brad AT bradconte COM)
+#
+# This is a script to copy/backup various important config files from my
+# system. All files are stored in a new "root" directory with their original
+# root-relative path heirarchy. Everything can be restored by copying the
+# root backup directory over the filesystem root directory. Files to backup
+# are specified via the array.
+
+ARCHIVES_KEEP=50
+BU_DIR="/media/data/system/backup"
+ARCHIVE_BASENAME="$BU_DIR/skel-fs-backup-"
+PKG_BASENAME="$BU_DIR/package-list"
+BU_TMP="/tmp/skeleton-backup"
+
+MY_HOME="/home/b-con"
+BU_LIST=(
+	"${MY_HOME}/.Xauthorization"
+	"${MY_HOME}/.Xdefaults"
+	"${MY_HOME}/.bash_logout"
+	"${MY_HOME}/.bash_profile"
+	"${MY_HOME}/.bashrc"
+	"${MY_HOME}/.config"
+	"${MY_HOME}/.conkyrc"
+	"${MY_HOME}/.conkyrc.clients"
+	"${MY_HOME}/.conkyrc.connection"
+	"${MY_HOME}/.conkyrc.listen"
+	"${MY_HOME}/.conkyrc.services"
+	"${MY_HOME}/.easytag"
+	"${MY_HOME}/.gmrunrc"
+	"${MY_HOME}/.grip"
+	"${MY_HOME}/.gtkrc-2.0"
+	"${MY_HOME}/.gtkrc.mine"
+	"${MY_HOME}/.loginmsg"
+	"${MY_HOME}/.mrxvtrc"
+	"${MY_HOME}/.ssh"
+	"${MY_HOME}/.stalonetrayrc"
+	"${MY_HOME}/.themes"
+	"${MY_HOME}/.vimrc"
+	"${MY_HOME}/.xinitrc"
+	"${MY_HOME}/.xmodmaprc"
+	"${MY_HOME}/.xscreensaver"
+	"${MY_HOME}/bin"
+	"/etc/X11/xorg.conf"
+	"/etc/conf.d"
+	"/etc/dnsmasq.conf"
+	"/etc/fstab"
+	"/etc/makepkg.conf"
+	"/etc/motd"
+	"/etc/pam.d"
+	"/etc/pm"
+	"/etc/profile"
+	"/etc/rc.conf"
+	"/etc/rc.local"
+	"/etc/rc.local.shutdown"
+	"/etc/resolve.conf"
+	"/etc/resolv.conf.head"
+	"/etc/security"
+	"/etc/ssh"
+	"/etc/sudoers"
+	"/etc/udev/rules.d/10-usb-storage.rules"
+	"/root"
+	"/usr/local/bin"
+	"/usr/local/share/applications"
+	"/var/abs/local/patches"
+	"/var/spool/cron"
+	)
+
+# Want to preserve ownership's and perm's, so only run as root
+if [ ${EUID} -ne 0 ]; then
+	echo "You must run this script as root" >&2
+	exit 1
+fi
+
+if [ ! -d "$BU_DIR" ]; then
+	echo "Backup directory ${BU_DIR} doesn't exist" >&2
+	exit 1
+fi
+
+echo "=> Beginning backup of basic system configuration to:"
+echo "   $BU_DIR"
+
+echo "=> Copying files to temporary backup skeleton filesystem"
+[ -d "$BU_TMP" ] && rm -rf "$BU_TMP"
+mkdir "$BU_TMP"
+chmod 755 "$BU_TMP"
+
+for file in ${BU_LIST[@]} ; do
+	if [ -f "$file" -o -d "$file" ]; then
+		#echo "   => Backing up $file"
+		#cp -a --parents -t $BU_TMP "${file/#~/$MY_HOME}"
+		cp -a --parents "$file" "$BU_TMP"
+	fi
+done
+
+NEW_ARCHIVE="$ARCHIVE_BASENAME`date +%F`.tar.bz2"
+echo "=> Creating archive of skeleton backup:"
+echo "   $NEW_ARCHIVE"
+tar -cjf "$NEW_ARCHIVE" "$BU_TMP" || exit 1
+rm -rf "$BU_TMP"
+
+echo "=> Rotating archives"
+/usr/local/bin/rotate-archive "$ARCHIVE_BASENAME" $ARCHIVES_KEEP
+#ls "$ARCHIVE_BASENAME"* | sort -n | head -n -$ARCHIVES_KEEP | xargs rm 2> /dev/null
+
+# Backup the explicitly installed packages
+echo "=> Backing up explicitly installed pacman packages"
+UNOFFICIAL="`pacman -Qqem`"
+OFFICIAL="`pacman -Qqe | grep -v \"$UNOFFICIAL\"`"
+echo "$OFFICIAL" > "$PKG_BASENAME-official"
+echo "$UNOFFICIAL" > "$PKG_BASENAME-unofficial"
