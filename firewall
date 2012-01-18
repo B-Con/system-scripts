@@ -140,14 +140,18 @@ case $1 in
 		#################################################
 
 		# Static route to the home network router
-		arp -s 192.168.100.1 00:14:6C:A4:F7:20 2> /dev/null
+		if [ "`hostname`" = "beacon" ]; then
+			arp -s 192.168.100.1 00:14:6C:A4:F7:20 2> /dev/null
+		fi
 	;;
 
 	stop)
 		$IPTABLES -F
 		$IPTABLES -X
-		$IP6TABLES -F
-		$IP6TABLES -X
+		if [ -x "$IP6TABLES" ]; then
+			$IP6TABLES -F
+			$IP6TABLES -X
+		fi
 
 		sysctl -q -w net.ipv4.tcp_syncookies=1
 		sysctl -q -w net.ipv4.tcp_max_syn_backlog="2048"
