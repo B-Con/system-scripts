@@ -1,16 +1,15 @@
 #!/bin/bash
-# Uses Bash arrays
 
 # By: B-Con (Brad Conte: brad AT bradconte COM)
 #
 # This is a script to copy/backup various important config files from my
 # system. All files are stored in a new "root" directory with their original
-# root-relative path heirarchy. Everything can be restored by copying the
-# root backup directory over the filesystem root directory. Files to backup
+# root-relative path heirarchy. Everything can be restored by copying the 
+# root backup directory over the filesystem root directory. Files to backup 
 # are specified via the array.
 
 ARCHIVES_KEEP=50
-BU_DIR="/media/data/system/backup"
+BU_DIR="/media/storage/system/backup"
 ARCHIVE_BASENAME="$BU_DIR/skel-fs-backup-"
 PKG_BASENAME="$BU_DIR/package-list"
 BU_TMP="/tmp/skeleton-backup"
@@ -111,3 +110,4 @@ UNOFFICIAL="`pacman -Qqem`"
 OFFICIAL="`pacman -Qqe | grep -v \"$UNOFFICIAL\"`"
 echo "$OFFICIAL" > "$PKG_BASENAME-official"
 echo "$UNOFFICIAL" > "$PKG_BASENAME-unofficial"
+
