@@ -1,0 +1,15 @@
+#!/bin/sh
+
+case $1 in
+	pull)
+		rsync -avz -e "ssh -p 31415" "b-con@b-con.dyndns-at-home.com:$2" "$3"
+	;;
+	push)
+		rsync -avz -e "ssh -p 31415" "$2" "b-con@b-con.dyndns-at-home.com:$3"
+	;;
+	*)
+		echo "Usage: $0 [push|pull] <src> <dest>" >&2
+	;;
+esac
+
+exit $?
