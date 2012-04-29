@@ -22,9 +22,10 @@ PORT_BITTORRENT_TOP="7100"
 # - Cleanse existing IP tables and create necessary chains
 # - Accept connections from local
 # - Drop invalid packets
-# - Check source IP against list of banned IPs
+# - Check source IP against list of banned IPs before doing anything else.
 # - If the packet is est. or related, ACCEPT by default unless you have a need to drop
 # - If the packet is new, DROP by default unless you have a need to accept
+# - Drop anything else.
 
 case $1 in
 
@@ -162,12 +163,41 @@ case $1 in
 	;;
 
 	restart)
+		# This is also a convenient way to flush any custom
+		# iptables rules added since the firewall was started.
 		"$0" stop
 		"$0" start
 	;;
-
+	
+	add)
+		# Allow easy access to add rules to the main chains.
+		# iptables -I inserts a rule at the head of the chain. We can't add
+		# at the end of the chain because we have custom rules to return to the
+		# main chain at the end.
+		case "$2" in
+			banned)
+				# Todo: Add function that verifies the argument is a valid IP.
+				# Note that this allows mask ranges to be specified.
+				$IPTABLES -I BANNED_IPS --source "$3" -j LOG_DROP
+			;;
+			new)
+				# Can't insert at position 1 because this chain first checks
+				# that this is a SYN packet if it is TCP.
+				proto="`echo $3 | cut -d ':' -f 1`"
+				port="`echo $3 | cut -d ':' -f 2`"
+				if [ -z "$proto" -o -z "$port" ]; then
+					echo "Must specify the protocol and port, eg 'tcp:21'" >&2
+					exit 1;
+				fi
+				$IPTABLES -I NEW_CONNECT 2 -p "$proto" --dport "$port" -j ACCEPT
+			;;
+			est)
+				# Don't have any easy rules that need to be accomodated yet.
+			;;
+		esac
+	;;
 	*)
-		echo "   Usage: $0 [start|stop|restart]"
+		echo "   Usage: $0 [start|stop|restart|add] <banned|new|est> <tcp:port|udp:port|ip>"
 		exit 2
 	;;
 
