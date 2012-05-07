@@ -1,14 +1,19 @@
 #!/bin/sh
 
+SRC="$2"
+DEST="$3"
+[ $# -lt 3 ] && DEST="$2"
+
 case $1 in
 	pull)
-		rsync -avz -e "ssh -p 31415" "b-con@b-con.dyndns-at-home.com:$2" "$3"
+		rsync -avz -e "ssh -p 31415" "b-con@b-con.dyndns-at-home.com:$SRC" "$DEST"
 	;;
 	push)
-		rsync -avz -e "ssh -p 31415" "$2" "b-con@b-con.dyndns-at-home.com:$3"
+		rsync -avz -e "ssh -p 31415" "$SRC" "b-con@b-con.dyndns-at-home.com:$DEST"
 	;;
 	*)
 		echo "Usage: $0 [push|pull] <src> <dest>" >&2
+		echo "   dest is optional and will be the same path as src if omitted" >&2
 	;;
 esac
 
