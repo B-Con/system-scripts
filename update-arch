@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if [ "$1" = "-h" -o "$1" = "--help" ]; then
-	echo "usage: update [--optimize]"
+	echo "usage: update-arch [-o -a]"
 	exit 1
 fi
 
@@ -13,6 +13,9 @@ fi
 # Determine the size of the current log file
 LOG_FILE="/var/log/pacman.log"
 LOG_SIZE=`wc -l $LOG_FILE | cut -d ' ' -f 1`
+
+# Get the last update time
+LAST_UPGRADE_TIME=`grep "starting full system upgrade" /var/log/pacman.log | tail -n 1 | cut -d '[' -f 2 | cut -d ']' -f 1`
 
 # Update the system
 pacman -Sy || exit 1
@@ -34,8 +37,8 @@ LOG=`tail -n +$(( LOG_SIZE + 1 )) $LOG_FILE`
 MESSAGES=`echo "$LOG" | grep -v '] removed ' | grep -v '] installed ' | \
                         grep -v '] upgraded ' | grep -v '] Running ' | \
 						grep -v '] synchronizing ' | grep -v '] starting '`
-REMOVED=`echo "$LOG" | grep '] removed ' | cut -d ' ' -f 4`
-PACNEWS=`find /etc/ -name \*.pacnew 2> /dev/null`
+REMOVED="`echo "$LOG" | grep '] removed ' | cut -d ' ' -f 4`"
+PACNEWS="`find /etc/ -name \*.pacnew 2> /dev/null`"
 
 # Finish
 echo
@@ -57,5 +60,9 @@ if [ ! -z "$REMOVED" ]; then
 fi
 if [ ! -z "$PACNEWS" ]; then
 	echo "-> The following .pacnew/.pacsave files exist in /etc:"
-	echo $PACNEWS
+	echo "$PACNEWS"
 fi
+if [ ! -z "$LAST_UPGRADE_TIME" ]; then
+	echo "-> The last time you upgraded was at $LAST_UPGRADE_TIME"
+fi
+
