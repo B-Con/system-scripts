@@ -10,15 +10,20 @@ if [ ! -x `which zenity` ]; then
 	exit 1
 fi
 
-DEFAULT_FILENAME="screenshot-tmp.png"
+DATE="`date +%m-%d_%H:%M:%S`"
+DEFAULT_FILENAME="screenshot-$DATE.png"
 
 scrot "$DEFAULT_FILENAME" -e 'mv $f /tmp/'
-DATE="`date +%m-%d_%H:%M:%S`"
-FILENAME="`zenity --entry --text=\"Screenshot saved! Please choose a filename for the screenshot:" --entry-text="screenshot-$DATE.png\"`"
+FILENAME="`zenity --entry --text=\"Screenshot saved! Please choose a file name (and optionally the absolute path).\n(Press Cancel to delete the screenshot.)" --entry-text="$DEFAULT_FILENAME\"`"
 
 # Delete the screenshot if it's a blank filename.
 if [ "$FILENAME" = "" ]; then
 	rm /tmp/$DEFAULT_FILENAME
+# If a path was provided, treat it as absolute.
+elif [ "`dirname "$FILENAME"`" != "." ]; then
+	mv "/tmp/$DEFAULT_FILENAME" "$FILENAME"
+#Otherwise, move it to the Desktop.
 else
 	mv "/tmp/$DEFAULT_FILENAME" "/home/b-con/Desktop/$FILENAME"
 fi
+

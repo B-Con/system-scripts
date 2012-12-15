@@ -8,7 +8,7 @@
 # root backup directory over the filesystem root directory. Files to backup 
 # are specified via the array.
 
-ARCHIVES_KEEP=50
+ARCHIVES_KEEP=100
 BU_DIR="/media/storage/system/backup"
 ARCHIVE_BASENAME="$BU_DIR/skel-fs-backup-"
 PKG_BASENAME="$BU_DIR/package-list"
@@ -51,14 +51,12 @@ BU_LIST=(
 	"/etc/pam.d"
 	"/etc/pm"
 	"/etc/profile"
-	"/etc/rc.conf"
-	"/etc/rc.local"
-	"/etc/rc.local.shutdown"
 	"/etc/resolve.conf"
 	"/etc/resolv.conf.head"
 	"/etc/security"
 	"/etc/ssh"
 	"/etc/sudoers"
+	"/etc/systemd"
 	"/etc/udev/rules.d/10-usb-storage.rules"
 	"/root"
 	"/usr/local/bin"
