@@ -1,0 +1,18 @@
+#!/bin/sh
+
+#swapoff -a
+echo "0" > /proc/sys/vm/swappiness
+/usr/sbin/alsactl restore 0
+
+case "$HOSTNAME" in
+	"beacon")
+	;;
+	"beacon-laptop")
+		#/sbin/ifconfig wlan0 down
+		#/usr/bin/macchanger -A wlan0
+		#/sbin/ifconfig wlan0 up
+		echo "9" > /sys/class/backlight/acpi_video0/brightness
+		echo "5" > /proc/sys/vm/laptop_mode
+		echo "1500" > /proc/sys/vm/dirty_writeback_centisecs
+	;;
+esac
