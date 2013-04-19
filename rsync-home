@@ -6,10 +6,10 @@ DEST="$3"
 
 case $1 in
 	pull)
-		rsync -avz -e "ssh -p 31415" "b-con@b-con.dyndns-at-home.com:$SRC" "$DEST"
+		rsync -avz -e "ssh -p 31415" "b-con@home.bradconte.com:$SRC" "$DEST"
 	;;
 	push)
-		rsync -avz -e "ssh -p 31415" "$SRC" "b-con@b-con.dyndns-at-home.com:$DEST"
+		rsync -avz -e "ssh -p 31415" "$SRC" "b-con@home.bradconte.com:$DEST"
 	;;
 	*)
 		echo "Usage: $0 [push|pull] <src> <dest>" >&2
