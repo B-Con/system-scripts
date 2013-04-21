@@ -5,7 +5,7 @@ STATUS=1   # Return success explicitly
 
 case $1 in
 	-a|--add)
-		if [ ! -f $FILE ]; then
+		if [ ! -f $FILE ]; then 
 			echo    "===============================" >  $FILE
 			echo    "= Your Login Message Reminder =" >> $FILE
 			echo -e "===============================" >> $FILE
@@ -16,7 +16,7 @@ case $1 in
 		STATUS=0
 	;;
 	-s|--show)
-		if [ -f $FILE ]; then
+		if [ -f $FILE ]; then 
 			xmessage -c -buttons "OK - Remove message:0,Keep message:1" \
 			         -default "OK - Remove message" -file $FILE
 			[ $? -ne 1 ] && rm -f $FILE
@@ -28,7 +28,7 @@ case $1 in
 			if [ "$2" = "" -o "$2" = "0"]; then
 				rm -f $FILE
 			else
-				true
+				true	
 				# TODO: Remove the line number specified
 			fi
 			STATUS=0
@@ -53,3 +53,4 @@ case $1 in
 	;;
 esac
 exit $STATUS
+

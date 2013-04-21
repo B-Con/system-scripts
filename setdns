@@ -15,6 +15,5 @@ google)
 ;;
 *)
 	echo "Specify which DNS setting to use." >&2
-	echo "   opendns" >&2
-	echo "   google" >&2
 esac
+

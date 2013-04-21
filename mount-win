@@ -1,7 +1,9 @@
 #!/bin/sh
 
+##############################################################################
 # mount-win: a simple script to mount Windows filesystems with expected permissions
-# By: Brad Conte (brad@bradconte.com)
+# By: Brad Conte (brad@bradconte.com);  http://www.gnu.org/copyleft/gpl.html
+##############################################################################
 
 # Ensure the user exists
 #if [ "`id $1 2>&1 | cut -d ' ' -f 3`" == "No" ]; then

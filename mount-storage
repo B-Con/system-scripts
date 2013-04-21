@@ -2,7 +2,8 @@
 
 # Mount the volume if it isn't alreay
 var=`mount -l | grep '/media/storage'`
-if [ -z "$var" ]; then
+if [ -z "$var" ]
+then
 	# Find the block device Ubuntu decided to assign to the partition this bloody time (changes every boot)
 	#my_var=`ls -l /dev/disk/by-id | grep "scsi-1ATA_Maxtor_7H500F0_H81E4GAH-part1" | cut -d / -f 3`
 	#vol_path="/dev/$my_var"
