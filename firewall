@@ -157,7 +157,7 @@ case $1 in
 
 		# Static route to the home network router
 		if [ "`hostname`" = "beacon" ]; then
-			arp -s 192.168.100.1 00:14:6C:A4:F7:20 2> /dev/null
+			arp -s 192.168.1.1 10:bf:48:e7:3f:b6 2> /dev/null
 		fi
 	;;
 
