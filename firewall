@@ -127,9 +127,9 @@ case $1 in
 		# Drop and Log
 		####################
 
-		$IPTABLES -A LOG_DROP -p udp --dport 37 -j DROP   # NETBIOS scans
-		$IPTABLES -A LOG_DROP -m limit --limit 1/sec -j LOG --log-ip-options -p tcp --log-tcp-options --log-prefix "rejected_tcp: " --log-level 7
-		$IPTABLES -A LOG_DROP -m limit --limit 1/sec -j LOG --log-ip-options -p tcp --log-prefix "rejected_nontcp: " --log-level 7
+		#$IPTABLES -A LOG_DROP -p udp --dport 37 -j DROP   # NETBIOS scans
+		#$IPTABLES -A LOG_DROP -m limit --limit 1/sec -j LOG --log-ip-options -p tcp --log-tcp-options --log-prefix "rejected_tcp: " --log-level 7
+		#$IPTABLES -A LOG_DROP -m limit --limit 1/sec -j LOG --log-ip-options -p tcp --log-prefix "rejected_nontcp: " --log-level 7
 		$IPTABLES -A LOG_DROP -j DROP
 
 		#################################################
