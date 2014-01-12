@@ -37,7 +37,7 @@ LOG=`tail -n +$(( LOG_SIZE + 1 )) $LOG_FILE`
 MESSAGES=`echo "$LOG" | grep -v '] removed ' | grep -v '] installed ' | \
                         grep -v '] upgraded ' | grep -v '] Running ' | \
 						grep -v '] synchronizing ' | grep -v '] starting '`
-REMOVED="`echo "$LOG" | grep '] removed ' | cut -d ' ' -f 4`"
+REMOVED="`echo "$LOG" | grep '] removed ' | awk '{print $4}'`"
 PACNEWS="`find /etc/ -name \*.pacnew 2> /dev/null`"
 
 # Finish
