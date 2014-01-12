@@ -1,11 +1,13 @@
 #!/bin/sh
 
 #swapoff -a
+modprobe loop
 echo "0" > /proc/sys/vm/swappiness
 /usr/sbin/alsactl restore 0
 
 case "$HOSTNAME" in
 	"beacon")
+		modprobe vboxdrv vboxnetadp vboxnetflt vboxpci
 	;;
 	"beacon-laptop")
 		#/sbin/ifconfig wlan0 down
