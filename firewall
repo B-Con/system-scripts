@@ -17,6 +17,8 @@ PORT_PORTMAPPER="111"
 PORT_SMB_NETBIOS="445"
 PORT_SMB_MSDS="139"
 PORT_SSH="31415"
+PORTS_PLEX_SERVER_TCP="32400,32469"
+PORTS_PLEX_SERVER_UDP="32400,32469,5353,1900"
 
 [ ! -x "$IPTABLES" ] && exit 1
 
@@ -105,16 +107,19 @@ case $1 in
 		#$IPTABLES -A NEW_CONNECT -m recent --update --seconds 10 --hitcount 10 --rttl --name NEW -j LOG_DROP
 		# Listening services
 		$IPTABLES -A NEW_CONNECT -p tcp --dport $PORT_SSH -j ACCEPT
+		
 		$IPTABLES -A NEW_CONNECT -p tcp --dport $PORT_BITTORRENT_BOTTOM:$PORT_BITTORRENT_TOP -j ACCEPT
+		$IPTABLES -A NEW_CONNECT -p udp --dport $PORT_BITTORRENT_BOTTOM:$PORT_BITTORRENT_TOP -j ACCEPT
+		
 		$IPTABLES -A NEW_CONNECT -p tcp --dport $PORT_SMB_NETBIOS -j ACCEPT
 		$IPTABLES -A NEW_CONNECT -p tcp --dport $PORT_SMB_MSDS -j ACCEPT
+		
+		$IPTABLES -A NEW_CONNECT -p tcp -m multiport --dports $PORTS_PLEX_SERVER_TCP -j ACCEPT
+		$IPTABLES -A NEW_CONNECT -p udp -m multiport --dports $PORTS_PLEX_SERVER_UDP -j ACCEPT
+
 #		$IPTABLES -A NEW_CONNECT -p tcp --dport $PORT_NFS_MOUNT_BOTTOM:$PORT_NFS_MOUNT_TOP -j ACCEPT
 #		$IPTABLES -A NEW_CONNECT -p tcp --dport $PORT_NFS -j ACCEPT
 #		$IPTABLES -A NEW_CONNECT -p tcp --dport $PORT_PORTMAPPER -j ACCEPT
-
-
-		# UDP
-		$IPTABLES -A NEW_CONNECT -p udp --dport $PORT_BITTORRENT_BOTTOM:$PORT_BITTORRENT_TOP -j ACCEPT
 #		$IPTABLES -A NEW_CONNECT -p udp --dport $PORT_NFS_MOUNT_BOTTOM:$PORT_NFS_MOUNT_TOP -j ACCEPT
 #		$IPTABLES -A NEW_CONNECT -p udp --dport $PORT_NFS -j ACCEPT
 #		$IPTABLES -A NEW_CONNECT -p udp --dport $PORT_PORTMAPPER -j ACCEPT
@@ -126,7 +131,8 @@ case $1 in
 		####################
 		# Drop and Log
 		####################
-
+		
+		# Currently don't log, just drop.
 		#$IPTABLES -A LOG_DROP -p udp --dport 37 -j DROP   # NETBIOS scans
 		#$IPTABLES -A LOG_DROP -m limit --limit 1/sec -j LOG --log-ip-options -p tcp --log-tcp-options --log-prefix "rejected_tcp: " --log-level 7
 		#$IPTABLES -A LOG_DROP -m limit --limit 1/sec -j LOG --log-ip-options -p tcp --log-prefix "rejected_nontcp: " --log-level 7
