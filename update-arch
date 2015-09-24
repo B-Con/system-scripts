@@ -34,10 +34,10 @@ sync
 
 # Find any new .pacnew/.pacsave files, warnings, or removed packages
 LOG=`tail -n +$(( LOG_SIZE + 1 )) $LOG_FILE`
-MESSAGES=`echo "$LOG" | grep -v '] removed ' | grep -v '] installed ' | \
-                        grep -v '] upgraded ' | grep -v '] Running ' | \
-						grep -v '] synchronizing ' | grep -v '] starting '`
-REMOVED="`echo "$LOG" | grep '] removed ' | awk '{print $5}'`"
+MESSAGES=`echo "$LOG" | grep -v '[PACMAN] removed ' | grep -v '] installed ' | \
+                        grep -v '[PACMAN] upgraded ' | grep -v '] Running ' | \
+						grep -v '[PACMAN] synchronizing ' | grep -v '] starting '`
+REMOVED="`echo "$LOG" | grep '[PACMAN] removed ' | awk '{print $5}'`"
 PACNEWS="`find /etc/ -name \*.pacnew 2> /dev/null`"
 
 # Finish
