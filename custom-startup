@@ -7,7 +7,7 @@ echo "0" > /proc/sys/vm/swappiness
 
 case "$HOSTNAME" in
 	"beacon")
-		modprobe vboxdrv vboxnetadp vboxnetflt vboxpci
+		modprobe -a vboxdrv vboxnetadp vboxnetflt vboxpci
 	;;
 	"beacon-laptop")
 		#/sbin/ifconfig wlan0 down
