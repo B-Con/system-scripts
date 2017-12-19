@@ -1,4 +1,3 @@
 #!/bin/sh
 
-swapon -a
-pm-hibernate
+systemctl hibernate
